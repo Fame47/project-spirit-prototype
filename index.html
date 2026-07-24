@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Project Spirit v0.7</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="game-shell">
+    <header>
+      <div>
+        <h1>PROJECT SPIRIT</h1>
+        <p>Prototype v0.7 • Tactical AI</p>
+      </div>
+      <button id="restartBtn" type="button">Restart Match</button>
+    </header>
+
+    <section class="hud" aria-label="Match HUD">
+      <div class="fighter-hud left">
+        <div class="name-row">
+          <strong id="p1Name">HUNTER</strong>
+          <span id="p1Rounds">○ ○</span>
+        </div>
+        <div class="health-track"><div id="p1Health" class="health-fill"></div></div>
+        <div id="p1Spirit" class="spirit-row" aria-label="Hunter spirit"></div>
+      </div>
+
+      <div class="timer-box">
+        <span id="roundText">ROUND 1</span>
+        <strong id="timer">99</strong>
+      </div>
+
+      <div class="fighter-hud right">
+        <div class="name-row">
+          <span id="p2Rounds">○ ○</span>
+          <strong id="p2Name">BRUISER</strong>
+        </div>
+        <div class="health-track"><div id="p2Health" class="health-fill"></div></div>
+        <div id="p2Spirit" class="spirit-row" aria-label="Bruiser spirit"></div>
+      </div>
+    </section>
+
+    <section class="arena-wrap">
+      <div id="characterSelect" class="character-select">
+        <div class="select-panel">
+          <p class="eyebrow">CHOOSE YOUR FIGHTER</p>
+          <h2>Who enters the arena?</h2>
+          <div class="fighter-options">
+            <button class="fighter-choice hunter-choice" data-fighter="hunter" type="button">
+              <strong>HUNTER</strong>
+              <span>Motion Spear • Motion Boomerang • Red Upgrades</span>
+              <small>Fast screen control</small>
+            </button>
+            <button class="fighter-choice bruiser-choice" data-fighter="bruiser" type="button">
+              <strong>BRUISER</strong>
+              <span>Motion Rage • Motion Dash • Red Upgrades</span>
+              <small>Heavy pressure fighter</small>
+            </button>
+          </div>
+        </div>
+      </div>
+      <canvas id="game" width="1920" height="1080" aria-label="Project Spirit fighting game"></canvas>
+      <div id="announcement" class="announcement">ROUND 1</div>
+
+      <aside id="playerMoveCard" class="move-card hunter-card">
+        <h2 id="playerCardName">HUNTER</h2>
+        <div id="playerCardMoves">
+          <p>Back, Forward + <kbd>F</kbd> Spear</p>
+          <p>Back, Back + <kbd>F</kbd> Boomerang</p>
+          <p><kbd>Q</kbd>/<kbd>E</kbd> Red upgrades • 1 Spirit</p>
+          <p><kbd>R</kbd> Spirit Unleash • 3 Spirit</p>
+        </div>
+      </aside>
+
+      <aside id="aiMoveCard" class="move-card bruiser-card">
+        <h2 id="aiCardName">BRUISER AI</h2>
+        <div id="aiCardMoves">
+          <p>Down, Down + Kick • Battle Rage</p>
+          <p>Forward, Forward + Punch • Dash Punch</p>
+          <p>Q/E Red upgrades • 1 Spirit</p>
+          <p>Spirit Unleash • 3 Spirit</p>
+        </div>
+      </aside>
+    </section>
+
+    <section class="controls">
+      <div><kbd>A</kbd><kbd>D</kbd> Move</div>
+      <div><kbd>W</kbd> Jump</div>
+      <div><kbd>S</kbd> Crouch</div>
+      <div><kbd>F</kbd> Punch</div>
+      <div><kbd>G</kbd> Kick</div>
+      <div><kbd>V</kbd> Block</div>
+      <div><kbd>Q</kbd> <span id="specialOneLabel">Red Spear</span></div>
+      <div><kbd>E</kbd> <span id="specialTwoLabel">Red Boomerang</span></div>
+      <div><kbd>R</kbd> Unleash</div>
+    </section>
+
+    <p class="note">Motion moves cost no Spirit. Q and E trigger the stronger red versions for 1 Spirit. Back and Forward follow the direction your fighter is facing.</p>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
