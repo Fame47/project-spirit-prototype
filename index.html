@@ -215,7 +215,48 @@
           </div>
         </div>
       </div>
+
+      <!-- Compatibility hooks: the core combat script still reads these nodes.
+           They stay in the DOM but are hidden by the v1.1 clean-screen CSS. -->
+      <aside id="playerMoveCard" class="move-card hunter-card" aria-hidden="true">
+        <h2 id="playerCardName">HUNTER</h2>
+        <div id="playerCardMoves">
+          <p>Back, Forward + <kbd>F</kbd> Spear</p>
+          <p>Back, Back + <kbd>F</kbd> Boomerang</p>
+          <p><kbd>G</kbd> → <kbd>F</kbd> Kick → Punch combo</p>
+          <p><kbd>F</kbd> → <kbd>G</kbd> → <kbd>F</kbd> Punch → Kick → Punch combo</p>
+          <p><kbd>W</kbd> + <kbd>G</kbd> Hunter Jump Kick</p>
+          <p><kbd>Q</kbd>/<kbd>E</kbd> Red upgrades • 1 Spirit</p>
+          <p><kbd>R</kbd> Spirit Unleash • 3 Spirit</p>
+        </div>
+      </aside>
+
+      <aside id="aiMoveCard" class="move-card bruiser-card" aria-hidden="true">
+        <h2 id="aiCardName">BRUISER AI</h2>
+        <div id="aiCardMoves">
+          <p>Down, Down + Kick • Battle Rage</p>
+          <p>Forward, Forward + Punch • Dash Punch</p>
+          <p>Q/E Red upgrades • 1 Spirit</p>
+          <p>Spirit Unleash • 3 Spirit</p>
+        </div>
+      </aside>
     </section>
+
+    <section class="controls" aria-hidden="true">
+      <div><kbd>A</kbd><kbd>D</kbd> Move</div>
+      <div><kbd>W</kbd> Jump</div>
+      <div><kbd>S</kbd> Crouch</div>
+      <div><kbd>F</kbd> Punch</div>
+      <div><kbd>G</kbd> Kick</div>
+      <div><kbd>G</kbd>→<kbd>F</kbd> 2-Hit</div>
+      <div><kbd>F</kbd>→<kbd>G</kbd>→<kbd>F</kbd> 3-Hit</div>
+      <div><kbd>V</kbd> Block</div>
+      <div><kbd>Q</kbd> <span id="specialOneLabel">Red Spear</span></div>
+      <div><kbd>E</kbd> <span id="specialTwoLabel">Red Boomerang</span></div>
+      <div><kbd>R</kbd> Unleash</div>
+    </section>
+
+    <p class="note" aria-hidden="true">Keyboard and controller help moved into the pause menu.</p>
 
   </main>
 
