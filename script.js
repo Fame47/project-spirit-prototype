@@ -54,7 +54,10 @@
     punch: loadFrames('punch', 'punch', 4),
     kick: loadFrames('kick', 'kick', 4),
     air_kick: loadFrames('air_kick', 'air_kick', 1),
-    spear_throw: loadFrames('spear_throw', 'spear_throw', 3)
+    spear_throw: loadFrames('spear_throw', 'spear_throw', 3),
+    boomerang_throw: loadFrames('boomerang_throw', 'boomerang_throw', 3),
+    crouch_punch: loadFrames('crouch_punch', 'crouch_punch', 1),
+    crouch_kick: loadFrames('crouch_kick', 'crouch_kick', 1)
   };
 
   // Standalone Hunter projectile art. The spear source is kept vertical so it can
@@ -295,9 +298,13 @@
 
       if (this.specialAnim) {
         this.specialAnim.t += dt;
-        if (this.specialAnim.type === 'spear' && !this.specialAnim.spawned && this.specialAnim.t >= this.specialAnim.spawnAt) {
+        if (!this.specialAnim.spawned && this.specialAnim.t >= this.specialAnim.spawnAt) {
           this.specialAnim.spawned = true;
-          spawnHunterSpearProjectile(this, this.specialAnim.powered, this.specialAnim.facing);
+          if (this.specialAnim.type === 'spear') {
+            spawnHunterSpearProjectile(this, this.specialAnim.powered, this.specialAnim.facing);
+          } else if (this.specialAnim.type === 'boomerang') {
+            spawnHunterBoomerangProjectile(this, this.specialAnim.powered, this.specialAnim.facing);
+          }
         }
         if (this.specialAnim.t >= this.specialAnim.duration) this.specialAnim = null;
       }
@@ -615,10 +622,12 @@
     getAnimationState() {
       if (this.type !== 'hunter') return 'idle';
       if (this.specialAnim?.type === 'spear') return 'spear_throw';
+      if (this.specialAnim?.type === 'boomerang') return 'boomerang_throw';
       if (this.attack) {
         if (this.attack.type === 'combo2' || this.attack.type === 'combo3') return 'combo';
         if (this.attack.type === 'airKick') return 'air_kick';
-        if (this.attack.type === 'crouchPunch' || this.attack.type === 'sweep') return 'crouch';
+        if (this.attack.type === 'crouchPunch') return 'crouch_punch';
+        if (this.attack.type === 'sweep') return 'crouch_kick';
         return this.attack.type.toLowerCase().includes('kick') ? 'kick' : 'punch';
       }
       if (this.blocking) return 'guard';
@@ -636,6 +645,22 @@
         if (t < .12) return frames[0] || HUNTER_SPRITES.idle[0];
         if (t < .24) return frames[1] || frames[0] || HUNTER_SPRITES.idle[0];
         return frames[2] || frames[1] || frames[0] || HUNTER_SPRITES.idle[0];
+      }
+
+      if (this.animState === 'boomerang_throw' && this.specialAnim) {
+        const frames = HUNTER_SPRITES.boomerang_throw;
+        const t = this.specialAnim.t;
+        if (t < .12) return frames[0] || HUNTER_SPRITES.idle[0];
+        if (t < .24) return frames[1] || frames[0] || HUNTER_SPRITES.idle[0];
+        return frames[2] || frames[1] || frames[0] || HUNTER_SPRITES.idle[0];
+      }
+
+      if (this.animState === 'crouch_punch' && this.attack) {
+        return HUNTER_SPRITES.crouch_punch[0] || HUNTER_SPRITES.crouch[1] || HUNTER_SPRITES.idle[0];
+      }
+
+      if (this.animState === 'crouch_kick' && this.attack) {
+        return HUNTER_SPRITES.crouch_kick[0] || HUNTER_SPRITES.crouch[1] || HUNTER_SPRITES.idle[0];
       }
 
       if (this.animState === 'combo' && this.attack) {
@@ -971,31 +996,52 @@
     return true;
   }
 
-  function hunterRegularBoomerang(fighter) {
-    if (!fighter.canUseBasicMove()) return false;
-    fighter.basicMoveCooldown = 2.2;
-    fighter.specialLock = .32;
+  function startHunterBoomerangThrow(fighter, powered = false) {
+    const duration = powered ? .42 : .38;
+    fighter.specialAnim = {
+      type: 'boomerang',
+      t: 0,
+      powered,
+      facing: fighter.facing,
+      spawned: false,
+      spawnAt: .24,
+      duration
+    };
+    fighter.specialLock = Math.max(fighter.specialLock, duration);
+    fighter.vx = 0;
+    fighter.blocking = false;
+  }
+
+  function spawnHunterBoomerangProjectile(fighter, powered = false, lockedFacing = fighter.facing) {
+    const facing = lockedFacing || fighter.facing;
     const id = ++boomerangId;
     projectiles.push({
       id,
       kind: 'boomerangOut',
       owner: fighter,
-      x: fighter.x + fighter.facing * 42,
-      y: fighter.bodyTop + 48,
-      throwDirection: fighter.facing,
-      vx: fighter.facing * 1120,
-      w: 52,
-      h: 34,
-      damage: 10,
+      x: fighter.x + facing * 70,
+      y: fighter.bodyTop + 70,
+      throwDirection: facing,
+      vx: facing * (powered ? 1350 : 1120),
+      w: powered ? 57 : 52,
+      h: powered ? 36 : 34,
+      damage: powered ? 14 : 10,
       life: 5.0,
       timer: 1.5,
-      powered: false,
-      unblockable: false,
-      returnSpeed: 1245,
+      powered,
+      glow: powered ? '#ff2038' : null,
+      unblockable: powered,
+      returnSpeed: powered ? 1500 : 1245,
       active: false,
       hit: false
     });
-    spawnText(fighter.x, fighter.bodyTop - 18, 'BOOMERANG', '#d9edf2');
+    spawnText(fighter.x, fighter.bodyTop - 18, powered ? 'RED BOOMERANG' : 'BOOMERANG', powered ? '#ff6b78' : '#d9edf2');
+  }
+
+  function hunterRegularBoomerang(fighter) {
+    if (!fighter.canUseBasicMove()) return false;
+    fighter.basicMoveCooldown = 2.2;
+    startHunterBoomerangThrow(fighter, false);
     return true;
   }
 
@@ -1041,28 +1087,7 @@
 
   function hunterBoomerang(fighter) {
     if (!fighter.canAct() || !fighter.spendSpirit(1)) return;
-    fighter.specialLock = .35;
-    const id = ++boomerangId;
-    projectiles.push({
-      id,
-      kind: 'boomerangOut',
-      owner: fighter,
-      x: fighter.x + fighter.facing * 42,
-      y: fighter.bodyTop + 48,
-      throwDirection: fighter.facing,
-      vx: fighter.facing * 1350,
-      w: 57,
-      h: 36,
-      damage: 14,
-      life: 5.0,
-      timer: 1.5,
-      powered: true,
-      glow: '#ff2038',
-      unblockable: true,
-      returnSpeed: 1500,
-      active: false,
-      hit: false
-    });
+    startHunterBoomerangThrow(fighter, true);
   }
 
   function bruiserRage(fighter) {
