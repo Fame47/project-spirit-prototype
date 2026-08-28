@@ -29,10 +29,40 @@
   const H = canvas.height;
   const FLOOR = 900;
   const keys = new Set();
+  const gamepadKeys = new Set();
   const pressed = new Set();
+  let previousGamepadKeys = new Set();
+
+  const inputDown = code => keys.has(code) || gamepadKeys.has(code);
 
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
   const rand = (min, max) => Math.random() * (max - min) + min;
+
+  const HUNTER_SPRITE = { width: 420, height: 380, anchorX: 210, baselineY: 365 };
+  const loadFrames = (folder, prefix, count) => Array.from({ length: count }, (_, index) => {
+    const image = new Image();
+    image.src = `assets/hunter/${folder}/${prefix}_${index}.png`;
+    return image;
+  });
+  const HUNTER_SPRITES = {
+    idle: loadFrames('idle', 'idle', 4),
+    walk_forward: loadFrames('walk_forward', 'walk_forward', 5),
+    walk_backward: loadFrames('walk_backward', 'walk_backward', 5),
+    jump: loadFrames('jump', 'jump', 4),
+    crouch: loadFrames('crouch', 'crouch', 2),
+    guard: loadFrames('guard', 'guard', 2),
+    punch: loadFrames('punch', 'punch', 4),
+    kick: loadFrames('kick', 'kick', 4),
+    air_kick: loadFrames('air_kick', 'air_kick', 1)
+  };
+
+  // Standalone Hunter projectile art. The spear source is kept vertical so it can
+  // be rotated cleanly toward either side at draw time.
+  const HUNTER_PROJECTILES = {
+    spear: new Image()
+  };
+  HUNTER_PROJECTILES.spear.src = 'assets/hunter/projectiles/spear.png';
+  const HUNTER_SPEAR_DRAW = { length: 140, thickness: 16 };
 
   const ATTACKS = {
     punch:       { duration: .28, activeStart: .075, activeEnd: .15, damage: 5, range: 102, height: 66, yOffset: 53, knockback: 203, stun: .22, spirit: 9, shake: 4 },
@@ -40,7 +70,35 @@
     crouchPunch: { duration: .30, activeStart: .08, activeEnd: .17, damage: 4, range: 93, height: 54, yOffset: 126, knockback: 165, stun: .19, spirit: 8, shake: 3 },
     sweep:       { duration: .52, activeStart: .18, activeEnd: .30, damage: 8, range: 162, height: 45, yOffset: 168, knockback: 353, stun: .42, spirit: 13, shake: 7 },
     airPunch:    { duration: .31, activeStart: .07, activeEnd: .18, damage: 6, range: 105, height: 78, yOffset: 68, knockback: 225, stun: .25, spirit: 10, shake: 4 },
-    airKick:     { duration: .44, activeStart: .10, activeEnd: .28, damage: 10, range: 153, height: 90, yOffset: 83, knockback: 330, stun: .36, spirit: 15, shake: 8 }
+    airKick:     { duration: .44, activeStart: .10, activeEnd: .28, damage: 10, range: 153, height: 90, yOffset: 83, knockback: 330, stun: .36, spirit: 15, shake: 8 },
+
+    // Hunter's dedicated number-key strings. Earlier hits use light knockback so
+    // the opponent stays in range; the last hit cashes out with the launcher/push.
+    combo2: {
+      duration: .58,
+      frames: ['kick2', 'punch3'],
+      frameTimes: [0, .29, .58],
+      hits: [
+        { activeStart: .09, activeEnd: .18, damage: 7, range: 150, height: 87, yOffset: 75, knockback: 72, stun: .24, spirit: 8, shake: 4 },
+        { activeStart: .34, activeEnd: .45, damage: 6, range: 110, height: 70, yOffset: 52, knockback: 275, stun: .33, spirit: 10, shake: 7 }
+      ]
+    },
+    combo3: {
+      duration: .79,
+      frames: ['punch1', 'kick2', 'punch3'],
+      frameTimes: [0, .24, .49, .79],
+      hits: [
+        { activeStart: .06, activeEnd: .14, damage: 4, range: 108, height: 68, yOffset: 52, knockback: 50, stun: .22, spirit: 6, shake: 3 },
+        { activeStart: .29, activeEnd: .39, damage: 6, range: 150, height: 87, yOffset: 75, knockback: 75, stun: .25, spirit: 8, shake: 5 },
+        { activeStart: .56, activeEnd: .68, damage: 7, range: 112, height: 72, yOffset: 50, knockback: 320, stun: .37, spirit: 11, shake: 8 }
+      ]
+    }
+  };
+
+  const HUNTER_COMBO_FRAMES = {
+    punch1: HUNTER_SPRITES.punch[1],
+    kick2: HUNTER_SPRITES.kick[2],
+    punch3: HUNTER_SPRITES.punch[3]
   };
 
   class Fighter {
@@ -79,7 +137,11 @@
       this.specialLock = 0;
       this.basicMoveCooldown = 0;
       this.inputHistory = [];
+      this.attackInputHistory = [];
+      this.landingRecovery = 0;
       this.trail = [];
+      this.animState = 'idle';
+      this.animTime = 0;
     }
 
     get airborne() { return this.y < FLOOR - 1; }
@@ -120,7 +182,11 @@
       this.specialLock = 0;
       this.basicMoveCooldown = 0;
       this.inputHistory = [];
+      this.attackInputHistory = [];
+      this.landingRecovery = 0;
       this.trail = [];
+      this.animState = 'idle';
+      this.animTime = 0;
     }
 
     recordMotionInput(token) {
@@ -137,6 +203,47 @@
       const matched = sequence.every((token, index) => token === tail[index]);
       if (matched) this.inputHistory = [];
       return matched;
+    }
+
+    recordAttackInput(token) {
+      const now = performance.now();
+      this.attackInputHistory.push({ token, time: now });
+      this.attackInputHistory = this.attackInputHistory
+        .filter(entry => now - entry.time <= 1100)
+        .slice(-4);
+    }
+
+    attackSequenceMatches(sequence) {
+      const now = performance.now();
+      this.attackInputHistory = this.attackInputHistory.filter(entry => now - entry.time <= 1100);
+      if (this.attackInputHistory.length < sequence.length) return false;
+      const tail = this.attackInputHistory.slice(-sequence.length).map(entry => entry.token);
+      return sequence.every((token, index) => token === tail[index]);
+    }
+
+    forceCombo(type) {
+      if (matchState !== 'fight' || this.hitstun > 0 || this.specialLock > 0 || this.blocking || this.crouching || this.airborne) return false;
+      this.blocking = false;
+      const data = ATTACKS[type];
+      this.attack = {
+        type,
+        t: 0,
+        hit: false,
+        hitFlags: data.hits.map(() => false)
+      };
+      this.animState = 'combo';
+      this.animTime = 0;
+      this.attackInputHistory = [];
+      return true;
+    }
+
+    tryHunterComboInput(token) {
+      if (this.type !== 'hunter' || this.airborne || this.crouching || this.blocking || this.hitstun > 0 || this.specialLock > 0) return false;
+      this.recordAttackInput(token);
+      // Longest string gets priority so F → G → F never collapses into the G → F string.
+      if (this.attackSequenceMatches(['F', 'G', 'F'])) return this.forceCombo('combo3');
+      if (this.attackSequenceMatches(['G', 'F'])) return this.forceCombo('combo2');
+      return false;
     }
 
     canUseBasicMove() {
@@ -162,7 +269,13 @@
     startAttack(type) {
       if (!this.canAct()) return;
       this.blocking = false;
-      this.attack = { type, t: 0, hit: false };
+      const data = ATTACKS[type];
+      this.attack = {
+        type,
+        t: 0,
+        hit: false,
+        hitFlags: data && data.hits ? data.hits.map(() => false) : null
+      };
     }
 
     update(dt, opponent) {
@@ -175,6 +288,7 @@
       this.unleash = Math.max(0, this.unleash - dt);
       this.specialLock = Math.max(0, this.specialLock - dt);
       this.basicMoveCooldown = Math.max(0, this.basicMoveCooldown - dt);
+      if (!this.attack) this.landingRecovery = Math.max(0, this.landingRecovery - dt);
 
       if (this.dot) {
         this.dot.tick -= dt;
@@ -193,9 +307,20 @@
       if (this.attack) {
         this.attack.t += dt;
         const data = ATTACKS[this.attack.type];
-        if (!this.attack.hit &&
-            this.attack.t >= data.activeStart &&
-            this.attack.t <= data.activeEnd) {
+
+        if (data.hits) {
+          data.hits.forEach((hitData, index) => {
+            if (this.attack.hitFlags[index]) return;
+            if (this.attack.t < hitData.activeStart || this.attack.t > hitData.activeEnd) return;
+            const box = this.attackBox(hitData);
+            if (rectsOverlap(box, opponent.bodyBox())) {
+              this.attack.hitFlags[index] = true;
+              applyHit(this, opponent, hitData.damage, hitData.knockback, hitData.stun, hitData.spirit, hitData.shake, 'normal');
+            }
+          });
+        } else if (!this.attack.hit &&
+                   this.attack.t >= data.activeStart &&
+                   this.attack.t <= data.activeEnd) {
           const box = this.attackBox(data);
           if (rectsOverlap(box, opponent.bodyBox())) {
             this.attack.hit = true;
@@ -205,11 +330,13 @@
         if (this.attack.t >= data.duration) this.attack = null;
       }
 
+      const wasAirborne = this.airborne;
       this.vy += 2700 * dt;
       this.y += this.vy * dt;
       if (this.y >= FLOOR) {
         this.y = FLOOR;
         this.vy = 0;
+        if (wasAirborne) this.landingRecovery = .13;
       }
 
       this.x += this.vx * dt;
@@ -222,6 +349,14 @@
       }
       this.trail.forEach(t => t.life -= dt);
       this.trail = this.trail.filter(t => t.life > 0);
+
+      const nextAnimState = this.getAnimationState();
+      if (nextAnimState !== this.animState) {
+        this.animState = nextAnimState;
+        this.animTime = 0;
+      } else {
+        this.animTime += dt;
+      }
     }
 
     updatePlayer(opponent) {
@@ -231,13 +366,13 @@
       }
 
       const grounded = !this.airborne;
-      this.crouching = grounded && keys.has('KeyS') && this.hitstun <= 0 && !this.attack;
-      this.blocking = keys.has('KeyV') && grounded && this.hitstun <= 0 && !this.attack;
+      this.crouching = grounded && inputDown('KeyS') && this.hitstun <= 0 && !this.attack;
+      this.blocking = inputDown('KeyV') && grounded && this.hitstun <= 0 && !this.attack;
 
       if (this.canAct() && !this.blocking && !this.crouching) {
         let dir = 0;
-        if (keys.has('KeyA')) dir -= 1;
-        if (keys.has('KeyD')) dir += 1;
+        if (inputDown('KeyA')) dir -= 1;
+        if (inputDown('KeyD')) dir += 1;
         if (dir) this.vx = dir * 510 * this.speedMultiplier;
       }
 
@@ -250,25 +385,47 @@
       if (pressed.has('KeyD')) this.recordMotionInput(this.facing === 1 ? 'forward' : 'back');
 
       if (pressed.has('KeyF')) {
-        let usedMotion = false;
-        if (this.type === 'hunter' && this.consumeMotion(['back', 'forward'])) {
-          usedMotion = hunterRegularSpear(this);
-        } else if (this.type === 'hunter' && this.consumeMotion(['back', 'back'])) {
-          usedMotion = hunterRegularBoomerang(this);
-        } else if (this.type === 'bruiser' && this.consumeMotion(['forward', 'forward'])) {
-          usedMotion = bruiserRegularDash(this, opponent);
-        }
-        if (!usedMotion) {
-          this.startAttack(this.airborne ? 'airPunch' : this.crouching ? 'crouchPunch' : 'punch');
+        const jumpingNow = this.airborne || (grounded && this.vy < -10);
+        if (jumpingNow) {
+          // Accept Jump + Punch even when both inputs land on the exact same frame.
+          // (W sets negative vertical velocity before physics moves Hunter off the floor.)
+          this.attackInputHistory = [];
+          this.startAttack('airPunch');
+        } else {
+          let usedMotion = false;
+          if (this.type === 'hunter' && this.consumeMotion(['back', 'forward'])) {
+            usedMotion = hunterRegularSpear(this);
+          } else if (this.type === 'hunter' && this.consumeMotion(['back', 'back'])) {
+            usedMotion = hunterRegularBoomerang(this);
+          } else if (this.type === 'bruiser' && this.consumeMotion(['forward', 'forward'])) {
+            usedMotion = bruiserRegularDash(this, opponent);
+          }
+          if (usedMotion) {
+            this.attackInputHistory = [];
+          } else {
+            const comboStarted = grounded && this.tryHunterComboInput('F');
+            if (!comboStarted) this.startAttack(this.crouching ? 'crouchPunch' : 'punch');
+          }
         }
       }
       if (pressed.has('KeyG')) {
-        let usedMotion = false;
-        if (this.type === 'bruiser' && this.consumeMotion(['down', 'down'])) {
-          usedMotion = bruiserRegularRage(this);
-        }
-        if (!usedMotion) {
-          this.startAttack(this.airborne ? 'airKick' : this.crouching ? 'sweep' : 'kick');
+        const jumpingNow = this.airborne || (grounded && this.vy < -10);
+        if (this.type === 'hunter' && jumpingNow) {
+          // This is Hunter's dedicated cool jump-kick sprite. It also works when
+          // Jump + Kick are pressed simultaneously on keyboard or Xbox.
+          this.attackInputHistory = [];
+          this.startAttack('airKick');
+        } else {
+          let usedMotion = false;
+          if (this.type === 'bruiser' && this.consumeMotion(['down', 'down'])) {
+            usedMotion = bruiserRegularRage(this);
+          }
+          if (usedMotion) {
+            this.attackInputHistory = [];
+          } else {
+            const comboStarted = grounded && this.tryHunterComboInput('G');
+            if (!comboStarted) this.startAttack(this.crouching ? 'sweep' : 'kick');
+          }
         }
       }
       if (pressed.has('KeyQ')) {
@@ -280,6 +437,7 @@
         else bruiserDash(this, opponent);
       }
       if (pressed.has('KeyR')) spiritUnleash(this);
+
     }
 
     updateAI(dt, opponent) {
@@ -442,6 +600,82 @@
       }
     }
 
+    getAnimationState() {
+      if (this.type !== 'hunter') return 'idle';
+      if (this.attack) {
+        if (this.attack.type === 'combo2' || this.attack.type === 'combo3') return 'combo';
+        if (this.attack.type === 'airKick') return 'air_kick';
+        if (this.attack.type === 'crouchPunch' || this.attack.type === 'sweep') return 'crouch';
+        return this.attack.type.toLowerCase().includes('kick') ? 'kick' : 'punch';
+      }
+      if (this.blocking) return 'guard';
+      if (this.crouching && !this.airborne) return 'crouch';
+      if (this.airborne) return 'jump';
+      if (this.landingRecovery > 0) return 'landing';
+      if (Math.abs(this.vx) > 45) return this.vx * this.facing > 0 ? 'walk_forward' : 'walk_backward';
+      return 'idle';
+    }
+
+    getHunterFrame() {
+      if (this.animState === 'combo' && this.attack) {
+        const data = ATTACKS[this.attack.type];
+        if (data && data.frames && data.frameTimes) {
+          let index = data.frames.length - 1;
+          for (let i = 0; i < data.frames.length; i += 1) {
+            if (this.attack.t >= data.frameTimes[i] && this.attack.t < data.frameTimes[i + 1]) {
+              index = i;
+              break;
+            }
+          }
+          return HUNTER_COMBO_FRAMES[data.frames[index]] || HUNTER_SPRITES.idle[0];
+        }
+      }
+
+      if (this.animState === 'landing') return HUNTER_SPRITES.jump[3];
+      if (this.animState === 'air_kick') return HUNTER_SPRITES.air_kick[0];
+
+      const state = this.animState in HUNTER_SPRITES ? this.animState : 'idle';
+      const frames = HUNTER_SPRITES[state];
+      let index = 0;
+
+      if (state === 'punch' || state === 'kick') {
+        if (this.attack) {
+          const attackData = ATTACKS[this.attack.type];
+          const progress = clamp(this.attack.t / attackData.duration, 0, .999);
+          index = Math.min(frames.length - 1, Math.floor(progress * frames.length));
+        } else {
+          index = Math.min(frames.length - 1, Math.floor(this.animTime / .09));
+        }
+      } else if (state === 'jump') {
+        if (this.vy < -850) index = 0;
+        else if (this.vy < -220) index = 1;
+        else if (this.vy < 480) index = 2;
+        else index = 3;
+      } else if (state === 'crouch') {
+        index = this.animTime < .08 ? 0 : 1;
+      } else if (state === 'guard') {
+        index = this.animTime < .08 ? 0 : 1;
+      } else if (state === 'walk_forward' || state === 'walk_backward') {
+        index = Math.floor(this.animTime / .105) % frames.length;
+      } else {
+        index = Math.floor(this.animTime / .18) % frames.length;
+      }
+
+      return frames[index] || frames[0];
+    }
+
+    drawHunterSprite(image, x, y, alpha = 1) {
+      if (!image || !image.complete || !image.naturalWidth) return false;
+      ctx.save();
+      ctx.translate(x, y);
+      if (this.facing < 0) ctx.scale(-1, 1);
+      ctx.globalAlpha *= alpha;
+      if (this.flash > 0) ctx.filter = 'brightness(3.2) saturate(0)';
+      ctx.drawImage(image, -HUNTER_SPRITE.anchorX, -HUNTER_SPRITE.baselineY, HUNTER_SPRITE.width, HUNTER_SPRITE.height);
+      ctx.restore();
+      return true;
+    }
+
     bodyBox() {
       return { x: this.x - this.bodyWidth / 2, y: this.bodyTop, w: this.bodyWidth, h: this.bodyHeight };
     }
@@ -467,13 +701,6 @@
       const bodyW = this.bodyWidth;
       const bodyH = this.bodyHeight;
 
-      for (const t of this.trail) {
-        ctx.globalAlpha = clamp(t.life / .16, 0, .28);
-        ctx.fillStyle = this.rage > 0 ? '#ff3b30' : this.accent;
-        ctx.fillRect(t.x - bodyW / 2, t.y - bodyH, bodyW, bodyH);
-      }
-      ctx.globalAlpha = 1;
-
       if (this.unleash > 0) {
         const pulse = 12 + Math.sin(performance.now() / 65) * 5;
         ctx.shadowBlur = 28 + pulse;
@@ -486,6 +713,40 @@
         ctx.shadowBlur = 18 + Math.sin(performance.now() / 75) * 5;
         ctx.shadowColor = '#ff9b54';
       }
+
+      if (this.type === 'hunter') {
+        const frame = this.getHunterFrame();
+        if (frame && frame.complete && frame.naturalWidth) {
+          for (const t of this.trail) {
+            this.drawHunterSprite(frame, t.x, t.y, clamp(t.life / .16, 0, .20));
+          }
+          this.drawHunterSprite(frame, this.x, this.y, 1);
+
+          if (this.blocking) {
+            ctx.strokeStyle = '#d9f5ff';
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.arc(this.x + this.facing * 42, this.bodyTop + 62, 31, -1.4, 1.4);
+            ctx.stroke();
+          }
+
+          if (this.dot) {
+            ctx.fillStyle = 'rgba(255,60,60,.75)';
+            ctx.fillRect(this.x - bodyW / 2 - 6, this.bodyTop - 9, bodyW + 12, 5);
+          }
+
+          ctx.restore();
+          return;
+        }
+      }
+
+      // Placeholder rendering remains for fighters that do not have finished sprite art yet.
+      for (const t of this.trail) {
+        ctx.globalAlpha = clamp(t.life / .16, 0, .28);
+        ctx.fillStyle = this.rage > 0 ? '#ff3b30' : this.accent;
+        ctx.fillRect(t.x - bodyW / 2, t.y - bodyH, bodyW, bodyH);
+      }
+      ctx.globalAlpha = 1;
 
       const top = this.bodyTop;
       ctx.fillStyle = this.flash > 0 ? '#ffffff' : this.color;
@@ -561,6 +822,8 @@
   function showCharacterSelect() {
     matchState = 'select';
     keys.clear();
+    gamepadKeys.clear();
+    previousGamepadKeys.clear();
     pressed.clear();
     ui.characterSelect.classList.remove('hidden');
   }
@@ -583,7 +846,7 @@
     ui.playerCardName.textContent = p1.name.toUpperCase();
     ui.aiCardName.textContent = `${p2.name.toUpperCase()} AI`;
     if (p1.type === 'hunter') {
-      ui.playerCardMoves.innerHTML = '<p>Back, Forward + <kbd>F</kbd> Spear</p><p>Back, Back + <kbd>F</kbd> Boomerang</p><p><kbd>Q</kbd> Red Spear • 1 Spirit</p><p><kbd>E</kbd> Red Boomerang • 1 Spirit</p><p><kbd>R</kbd> Spirit Unleash • 3 Spirit</p>';
+      ui.playerCardMoves.innerHTML = '<p>Back, Forward + <kbd>F</kbd> Spear</p><p>Back, Back + <kbd>F</kbd> Boomerang</p><p><kbd>G</kbd> → <kbd>F</kbd> Kick → Punch combo</p><p><kbd>F</kbd> → <kbd>G</kbd> → <kbd>F</kbd> Punch → Kick → Punch combo</p><p><kbd>W</kbd> + <kbd>G</kbd> Hunter Jump Kick</p><p><kbd>Q</kbd> Red Spear • 1 Spirit</p><p><kbd>E</kbd> Red Boomerang • 1 Spirit</p><p><kbd>R</kbd> Spirit Unleash • 3 Spirit</p>';
       ui.aiCardMoves.innerHTML = '<p>Down, Down + Kick • Battle Rage</p><p>Forward, Forward + Punch • Dash Punch</p><p>Q/E Red upgrades • 1 Spirit</p><p>Spirit Unleash • 3 Spirit</p>';
       ui.specialOneLabel.textContent = 'Red Spear';
       ui.specialTwoLabel.textContent = 'Red Boomerang';
@@ -1032,7 +1295,41 @@
     texts = texts.filter(t => t.life > 0);
   }
 
+  function pollGamepad() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    const pad = Array.from(pads || []).find(Boolean);
+    const next = new Set();
+
+    if (pad) {
+      const axisX = pad.axes?.[0] || 0;
+      const axisY = pad.axes?.[1] || 0;
+      const buttonDown = index => Boolean(pad.buttons?.[index]?.pressed || (pad.buttons?.[index]?.value || 0) > .55);
+
+      if (axisX < -.35 || buttonDown(14)) next.add('KeyA');
+      if (axisX > .35 || buttonDown(15)) next.add('KeyD');
+      if (axisY < -.55 || buttonDown(12)) next.add('KeyW');
+      if (axisY > .55 || buttonDown(13)) next.add('KeyS');
+
+      // Xbox standard layout: X = Punch, A = Kick, B/RT = Block,
+      // LB/RB = red specials, Y = Spirit Unleash.
+      if (buttonDown(2)) next.add('KeyF');
+      if (buttonDown(0)) next.add('KeyG');
+      if (buttonDown(1) || buttonDown(7)) next.add('KeyV');
+      if (buttonDown(4)) next.add('KeyQ');
+      if (buttonDown(5)) next.add('KeyE');
+      if (buttonDown(3)) next.add('KeyR');
+    }
+
+    for (const code of next) {
+      if (!previousGamepadKeys.has(code)) pressed.add(code);
+    }
+    gamepadKeys.clear();
+    for (const code of next) gamepadKeys.add(code);
+    previousGamepadKeys = next;
+  }
+
   function update(dt) {
+    pollGamepad();
     if (freeze > 0) {
       freeze -= dt;
       updateEffects(dt * .15);
@@ -1102,18 +1399,34 @@
       ctx.save();
       if (p.kind === 'spear') {
         const powered = p.powered !== false;
+        const spearImage = HUNTER_PROJECTILES.spear;
         ctx.translate(p.x, p.y);
-        ctx.rotate(p.vx > 0 ? 0 : Math.PI);
-        ctx.shadowBlur = powered ? 34 : 8;
+        // The source spear points upward. Rotate it 90° to point in the direction of travel.
+        ctx.rotate(p.vx > 0 ? Math.PI / 2 : -Math.PI / 2);
+        ctx.shadowBlur = powered ? 36 : 6;
         ctx.shadowColor = powered ? '#ff2038' : '#b7d8df';
-        ctx.fillStyle = powered ? '#ff3048' : '#b8c4c7';
-        ctx.fillRect(-63, -5, 105, 10);
-        ctx.fillStyle = powered ? '#fff1f3' : '#edf4f5';
-        ctx.beginPath();
-        ctx.moveTo(42, -14);
-        ctx.lineTo(72, 0);
-        ctx.lineTo(42, 14);
-        ctx.fill();
+
+        if (spearImage && spearImage.complete && spearImage.naturalWidth) {
+          // Same exact weapon for both versions. The powered spear is distinguished only
+          // by its red aura, so Hunter never appears to throw a different weapon.
+          ctx.drawImage(
+            spearImage,
+            -HUNTER_SPEAR_DRAW.thickness / 2,
+            -HUNTER_SPEAR_DRAW.length / 2,
+            HUNTER_SPEAR_DRAW.thickness,
+            HUNTER_SPEAR_DRAW.length
+          );
+        } else {
+          // Tiny fallback so the projectile remains usable before the PNG finishes loading.
+          ctx.fillStyle = '#b8c4c7';
+          ctx.fillRect(-5, -52, 10, 104);
+          ctx.fillStyle = '#edf4f5';
+          ctx.beginPath();
+          ctx.moveTo(-14, -52);
+          ctx.lineTo(0, -72);
+          ctx.lineTo(14, -52);
+          ctx.fill();
+        }
       } else if (p.kind.startsWith('boomerang')) {
         const powered = p.powered !== false;
         ctx.translate(p.x, p.y);
@@ -1229,6 +1542,8 @@
   addEventListener('keyup', e => keys.delete(e.code));
   addEventListener('blur', () => {
     keys.clear();
+    gamepadKeys.clear();
+    previousGamepadKeys.clear();
     pressed.clear();
   });
 

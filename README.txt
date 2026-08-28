@@ -1,17 +1,52 @@
-PROJECT SPIRIT v0.7 — TACTICAL AI
+PROJECT SPIRIT v1.0 — HUNTER JUMP KICK + REAL SPEAR ART
 
 Open index.html in a desktop browser.
 
-UNIVERSAL CONTROLS
+KEYBOARD
 A / D  Move
 W      Jump
 S      Crouch
 F      Punch
 G      Kick
 V      Block
-Q      Spirit-powered Move 1 (1 Spirit)
-E      Spirit-powered Move 2 (1 Spirit)
+Q      Spirit Move 1 (1 Spirit)
+E      Spirit Move 2 (1 Spirit)
 R      Spirit Unleash (3 Spirit)
+
+HUNTER F/G COMBOS
+G → F — 2-hit combo
+  jfkpromotion-kick_02 → jfkpromotion-punch_03
+
+F → G → F — 3-hit combo
+  jfkpromotion-punch_01 → jfkpromotion-kick_02 → jfkpromotion-punch_03
+
+- Enter the button string within about 1.1 seconds.
+- The final input can cancel Hunter's current basic attack into the combo string.
+- Early hits use lighter knockback so the opponent stays close.
+- Final hits use stronger knockback.
+- These combo strings are grounded-only.
+
+HUNTER AIR ATTACK
+W + G — Hunter Jump Kick
+- Uses the newly matched-size jump-kick image in assets/hunter/air_kick/air_kick_0.png.
+- Jump and Kick can be pressed together, or G can be pressed after Hunter leaves the ground.
+- Landing recovery uses jfkpromotion-jump_3 before returning to idle/walk.
+
+XBOX CONTROLLER
+Left Stick / D-pad — Move
+Up / D-pad Up      — Jump
+Down / D-pad Down  — Crouch
+X                   — Punch (F)
+A                   — Kick (G)
+B or RT             — Block
+LB                  — Spirit Move 1
+RB                  — Spirit Move 2
+Y                   — Spirit Unleash
+
+XBOX COMBOS
+A → X — 2-hit combo
+X → A → X — 3-hit combo
+Up + A — Hunter Jump Kick
 
 DIRECTION LANGUAGE
 Back and Forward are relative to the opponent.
@@ -24,30 +59,28 @@ Back, Forward + F — Spear
 Back, Back + F — Boomerang
 
 HUNTER RED SPIRIT UPGRADES
-Q — Red Spear: stronger pushback, including on block
-E — Red Boomerang: returns after 1 second and cannot be blocked
+Q / LB — Red Spear
+E / RB — Red Boomerang
+
+HUNTER SPEAR ART
+- Regular spear now uses the standalone Hunter spear PNG instead of the old drawn stick/triangle projectile.
+- In-game spear display length is about 140 px.
+- Q / LB uses the exact same spear asset with a red glow for the powered version.
+- Gameplay hitboxes/damage stay unchanged from v0.9.
 
 BRUISER REGULAR MOVES — NO SPIRIT COST
 Down, Down + G — Battle Rage
 Forward, Forward + F — Dash Punch
 
 BRUISER RED SPIRIT UPGRADES
-Q — Ultra Battle Rage: 25% larger, bright glow, +75% damage
-E — Super Dash Punch: stronger pushback and explosion impact
+Q / LB — Ultra Battle Rage
+E / RB — Super Dash Punch
 
-BALANCE NOTES
-- Regular Battle Rage lasts 3 seconds and adds 35% damage without increasing size.
-- Regular Dash Punch keeps the 4-second 20% damage drain but has no explosion.
-- Regular motion moves have short reuse cooldowns to prevent nonstop projectile and dash spam.
-- Spirit carries between rounds.
-- 1920 x 1080 combat canvas.
+HUNTER SPRITES
+- Idle, Walk Forward, Walk Backward, Jump, Crouch, Guard, Punch, Kick, and dedicated Air Kick are integrated.
+- Hunter automatically flips with facing direction.
+- Game-ready normalized frames live in assets/hunter/.
+- Original contractor/source frames are preserved in assets/hunter_source/.
+- Bruiser remains on the prototype placeholder renderer until his final sprites are added.
 
-
-TACTICAL AI UPDATE
-- Thinks in slower, readable intervals instead of making decisions every fraction of a second.
-- Pauses and holds position sometimes.
-- Retreats when the player is trapped in a corner.
-- Hunter prefers long-range spacing.
-- Bruiser approaches in bursts rather than continuously rushing.
-- Uses blocking, jumping, regular moves, and Spirit moves more selectively.
-- AI walking speed is lower than the player’s movement speed.
+Canvas: 1920 x 1080.

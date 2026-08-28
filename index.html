@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Project Spirit v0.7</title>
+  <title>Project Spirit v0.9</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -11,7 +11,7 @@
     <header>
       <div>
         <h1>PROJECT SPIRIT</h1>
-        <p>Prototype v0.7 • Tactical AI</p>
+        <p>Prototype v0.9 • F/G Combos • Xbox Controller • Hunter Jump Kick</p>
       </div>
       <button id="restartBtn" type="button">Restart Match</button>
     </header>
@@ -48,9 +48,10 @@
           <h2>Who enters the arena?</h2>
           <div class="fighter-options">
             <button class="fighter-choice hunter-choice" data-fighter="hunter" type="button">
+              <img class="fighter-preview" src="assets/hunter/idle/idle_0.png" alt="Hunter" />
               <strong>HUNTER</strong>
               <span>Motion Spear • Motion Boomerang • Red Upgrades</span>
-              <small>Fast screen control</small>
+              <small>Fast screen control • Full sprite animation</small>
             </button>
             <button class="fighter-choice bruiser-choice" data-fighter="bruiser" type="button">
               <strong>BRUISER</strong>
@@ -68,6 +69,9 @@
         <div id="playerCardMoves">
           <p>Back, Forward + <kbd>F</kbd> Spear</p>
           <p>Back, Back + <kbd>F</kbd> Boomerang</p>
+          <p><kbd>G</kbd> → <kbd>F</kbd> Kick → Punch combo</p>
+          <p><kbd>F</kbd> → <kbd>G</kbd> → <kbd>F</kbd> Punch → Kick → Punch combo</p>
+          <p><kbd>W</kbd> + <kbd>G</kbd> Hunter Jump Kick</p>
           <p><kbd>Q</kbd>/<kbd>E</kbd> Red upgrades • 1 Spirit</p>
           <p><kbd>R</kbd> Spirit Unleash • 3 Spirit</p>
         </div>
@@ -90,13 +94,15 @@
       <div><kbd>S</kbd> Crouch</div>
       <div><kbd>F</kbd> Punch</div>
       <div><kbd>G</kbd> Kick</div>
+      <div><kbd>G</kbd>→<kbd>F</kbd> 2-Hit</div>
+      <div><kbd>F</kbd>→<kbd>G</kbd>→<kbd>F</kbd> 3-Hit</div>
       <div><kbd>V</kbd> Block</div>
       <div><kbd>Q</kbd> <span id="specialOneLabel">Red Spear</span></div>
       <div><kbd>E</kbd> <span id="specialTwoLabel">Red Boomerang</span></div>
       <div><kbd>R</kbd> Unleash</div>
     </section>
 
-    <p class="note">Motion moves cost no Spirit. Q and E trigger the stronger red versions for 1 Spirit. Back and Forward follow the direction your fighter is facing.</p>
+    <p class="note">Keyboard: W jump • F punch • G kick • Jump + G uses Hunter's jump kick. Xbox: Left Stick/D-pad move & jump • X punch • A kick • B/RT block • LB/RB specials • Y unleash. Xbox combos: A→X / X→A→X • Up+A jump kick.</p>
   </main>
 
   <script src="script.js"></script>
