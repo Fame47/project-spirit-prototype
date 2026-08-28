@@ -3,15 +3,101 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Project Spirit v0.9</title>
+  <title>Project Spirit v1.1</title>
   <link rel="stylesheet" href="style.css" />
+
+  <style id="pauseMenuStyles">
+    /* v1.1 clean fight screen: move help lives in the pause menu now. */
+    .move-card,.controls,.note{display:none !important;}
+    #restartBtn{display:none !important;}
+
+    .pause-hint{
+      position:absolute;right:18px;bottom:18px;z-index:25;
+      display:flex;align-items:center;gap:8px;padding:7px 10px;
+      border:1px solid rgba(255,255,255,.18);border-radius:8px;
+      background:rgba(0,0,0,.40);color:rgba(255,255,255,.74);
+      font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.12em;
+      pointer-events:none;backdrop-filter:blur(4px);
+    }
+    .pause-hint kbd,.pause-panel kbd{
+      display:inline-flex;align-items:center;justify-content:center;
+      min-width:29px;height:27px;padding:0 7px;border-radius:6px;
+      border:1px solid rgba(255,255,255,.32);border-bottom-width:3px;
+      background:linear-gradient(#252525,#111);color:#fff;
+      font:900 12px/1 Arial,Helvetica,sans-serif;box-shadow:inset 0 1px rgba(255,255,255,.08);
+    }
+
+    .pause-menu{
+      position:absolute;inset:0;z-index:1000;display:none;
+      align-items:center;justify-content:center;padding:28px;
+      background:rgba(4,3,3,.76);backdrop-filter:blur(7px);
+      pointer-events:auto;
+    }
+    .pause-menu.show{display:flex;}
+    .pause-panel{
+      width:min(920px,94%);max-height:92%;overflow:auto;
+      padding:28px;border-radius:18px;
+      border:1px solid rgba(215,165,84,.54);
+      background:linear-gradient(160deg,rgba(27,22,18,.98),rgba(7,7,8,.98) 58%,rgba(19,7,7,.98));
+      box-shadow:0 28px 90px rgba(0,0,0,.72),inset 0 0 50px rgba(165,78,33,.08);
+      color:#f7f0e6;font-family:Arial,Helvetica,sans-serif;
+    }
+    .pause-topline{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px;}
+    .pause-kicker{margin:0 0 4px;color:#c89b5d;font-size:11px;font-weight:900;letter-spacing:.28em;}
+    .pause-panel h2{margin:0;font-size:46px;line-height:.95;letter-spacing:.06em;color:#fff;}
+    .pause-fighter-tag{
+      padding:9px 14px;border:1px solid rgba(221,172,99,.5);border-radius:999px;
+      color:#f3c882;background:rgba(113,55,21,.22);font-size:12px;font-weight:900;letter-spacing:.16em;
+    }
+    .pause-tabs{display:flex;gap:10px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:12px;}
+    .pause-tab,.pause-action{
+      min-height:44px;border:1px solid rgba(255,255,255,.18);border-radius:9px;
+      background:rgba(255,255,255,.045);color:#d8d2ca;padding:10px 18px;
+      font:900 12px/1 Arial,Helvetica,sans-serif;letter-spacing:.12em;cursor:pointer;
+    }
+    .pause-tab:hover,.pause-action:hover{background:rgba(255,255,255,.09);color:#fff;}
+    .pause-tab.active{border-color:#d69d52;color:#ffdaa0;background:rgba(160,82,27,.22);box-shadow:inset 0 -2px #d69d52;}
+    .pause-tab:focus-visible,.pause-action:focus-visible{outline:3px solid rgba(255,205,124,.5);outline-offset:2px;}
+    .pause-page{min-height:330px;}
+    .pause-page:not(.active){display:none;}
+    .control-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    .control-sheet{padding:16px 18px;border:1px solid rgba(255,255,255,.11);border-radius:12px;background:rgba(0,0,0,.22);}
+    .control-sheet h3{margin:0 0 12px;color:#e7b66e;font-size:13px;letter-spacing:.18em;}
+    .control-row{display:flex;justify-content:space-between;align-items:center;gap:15px;min-height:34px;border-top:1px solid rgba(255,255,255,.07);font-size:12px;}
+    .control-row:first-of-type{border-top:0;}
+    .control-row span{color:#bfb8af;font-weight:700;}
+    .control-row strong{display:flex;align-items:center;gap:5px;text-align:right;color:#fff;font-size:11px;}
+    .xbox-button{display:inline-flex !important;align-items:center;justify-content:center;width:27px;height:27px;border-radius:50%;color:#fff !important;font:900 12px/1 Arial !important;border:1px solid rgba(255,255,255,.24);}
+    .xbox-x{background:#2869a7}.xbox-a{background:#287d38}.xbox-b{background:#a72d2d}.xbox-y{background:#b58a16;color:#111 !important;}
+
+    .moveset-heading{display:flex;align-items:end;justify-content:space-between;gap:18px;margin-bottom:12px;}
+    .moveset-heading span{color:#a9a096;font-size:10px;font-weight:900;letter-spacing:.2em;}
+    .moveset-heading h3{margin:3px 0 0;font-size:28px;letter-spacing:.05em;color:#f7c77f;}
+    .moveset-heading small{color:#c7beb4;font-weight:800;}
+    .moveset-list{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;}
+    .move-entry{display:grid;grid-template-columns:minmax(110px,.8fr) 1.25fr 1.15fr;gap:10px;align-items:center;padding:11px 12px;border:1px solid rgba(255,255,255,.10);border-radius:10px;background:rgba(0,0,0,.22);}
+    .move-entry b{color:#fff;font-size:12px;letter-spacing:.04em;}
+    .move-entry .keyboard-input{color:#e9c28a;font-size:11px;font-weight:900;}
+    .move-entry .pad-input{color:#aab9c8;font-size:10px;font-weight:800;text-align:right;}
+    .move-entry.wide{grid-column:1/-1;}
+    .pause-actions{display:flex;align-items:center;gap:10px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,.11);}
+    .pause-action.primary{border-color:#c68b42;background:linear-gradient(180deg,#8b4c1f,#512711);color:#fff1d9;}
+    .pause-actions>span{margin-left:auto;color:#9f978d;font-size:11px;font-weight:800;}
+
+    body.spirit-paused{cursor:default;}
+    body.spirit-paused #pauseHint{display:none;}
+
+    @media (max-width:800px){
+      .pause-panel{padding:20px}.pause-panel h2{font-size:36px}.control-columns,.moveset-list{grid-template-columns:1fr}.move-entry.wide{grid-column:auto}.pause-page{min-height:0}.pause-actions{flex-wrap:wrap}.pause-actions>span{width:100%;margin-left:0}.pause-hint{right:10px;bottom:10px}
+    }
+  </style>
 </head>
 <body>
   <main class="game-shell">
     <header>
       <div>
         <h1>PROJECT SPIRIT</h1>
-        <p>Prototype v0.9 • F/G Combos • Xbox Controller • Hunter Jump Kick</p>
+        <p>Prototype v1.1 • Pause Menu • Dynamic Movesets</p>
       </div>
       <button id="restartBtn" type="button">Restart Match</button>
     </header>
@@ -64,47 +150,321 @@
       <canvas id="game" width="1920" height="1080" aria-label="Project Spirit fighting game"></canvas>
       <div id="announcement" class="announcement">ROUND 1</div>
 
-      <aside id="playerMoveCard" class="move-card hunter-card">
-        <h2 id="playerCardName">HUNTER</h2>
-        <div id="playerCardMoves">
-          <p>Back, Forward + <kbd>F</kbd> Spear</p>
-          <p>Back, Back + <kbd>F</kbd> Boomerang</p>
-          <p><kbd>G</kbd> → <kbd>F</kbd> Kick → Punch combo</p>
-          <p><kbd>F</kbd> → <kbd>G</kbd> → <kbd>F</kbd> Punch → Kick → Punch combo</p>
-          <p><kbd>W</kbd> + <kbd>G</kbd> Hunter Jump Kick</p>
-          <p><kbd>Q</kbd>/<kbd>E</kbd> Red upgrades • 1 Spirit</p>
-          <p><kbd>R</kbd> Spirit Unleash • 3 Spirit</p>
-        </div>
-      </aside>
+      <div id="pauseHint" class="pause-hint" aria-hidden="true"><kbd>ESC</kbd> PAUSE</div>
 
-      <aside id="aiMoveCard" class="move-card bruiser-card">
-        <h2 id="aiCardName">BRUISER AI</h2>
-        <div id="aiCardMoves">
-          <p>Down, Down + Kick • Battle Rage</p>
-          <p>Forward, Forward + Punch • Dash Punch</p>
-          <p>Q/E Red upgrades • 1 Spirit</p>
-          <p>Spirit Unleash • 3 Spirit</p>
+      <div id="pauseMenu" class="pause-menu" aria-hidden="true">
+        <div class="pause-panel" role="dialog" aria-modal="true" aria-labelledby="pauseTitle">
+          <div class="pause-topline">
+            <div>
+              <p class="pause-kicker">FIGHTING SPIRIT</p>
+              <h2 id="pauseTitle">PAUSED</h2>
+            </div>
+            <div class="pause-fighter-tag" id="pauseFighterTag">HUNTER</div>
+          </div>
+
+          <div class="pause-tabs" role="tablist" aria-label="Pause menu">
+            <button id="pauseControllerBtn" class="pause-tab active" type="button" role="tab" aria-selected="true" aria-controls="pauseControllerPanel">CONTROLLER</button>
+            <button id="pauseMovesetBtn" class="pause-tab" type="button" role="tab" aria-selected="false" aria-controls="pauseMovesetPanel">MOVESET</button>
+          </div>
+
+          <section id="pauseControllerPanel" class="pause-page active" role="tabpanel" aria-labelledby="pauseControllerBtn">
+            <div class="control-columns">
+              <div class="control-sheet">
+                <h3>KEYBOARD</h3>
+                <div class="control-row"><span>Move</span><strong><kbd>A</kbd> <kbd>D</kbd></strong></div>
+                <div class="control-row"><span>Jump</span><strong><kbd>W</kbd></strong></div>
+                <div class="control-row"><span>Crouch</span><strong><kbd>S</kbd></strong></div>
+                <div class="control-row"><span>Punch</span><strong><kbd>F</kbd></strong></div>
+                <div class="control-row"><span>Kick</span><strong><kbd>G</kbd></strong></div>
+                <div class="control-row"><span>Block</span><strong><kbd>V</kbd></strong></div>
+                <div class="control-row"><span>Special 1 / 2</span><strong><kbd>Q</kbd> <kbd>E</kbd></strong></div>
+                <div class="control-row"><span>Spirit Unleash</span><strong><kbd>R</kbd></strong></div>
+                <div class="control-row"><span>Pause</span><strong><kbd>ESC</kbd></strong></div>
+              </div>
+
+              <div class="control-sheet xbox-sheet">
+                <h3>XBOX CONTROLLER</h3>
+                <div class="control-row"><span>Move</span><strong>LEFT STICK / D-PAD</strong></div>
+                <div class="control-row"><span>Jump</span><strong>D-PAD UP / STICK UP</strong></div>
+                <div class="control-row"><span>Crouch</span><strong>D-PAD DOWN / STICK DOWN</strong></div>
+                <div class="control-row"><span>Punch</span><strong class="xbox-button xbox-x">X</strong></div>
+                <div class="control-row"><span>Kick</span><strong class="xbox-button xbox-a">A</strong></div>
+                <div class="control-row"><span>Block</span><strong><span class="xbox-button xbox-b">B</span> / RT</strong></div>
+                <div class="control-row"><span>Special 1 / 2</span><strong>LB / RB</strong></div>
+                <div class="control-row"><span>Spirit Unleash</span><strong class="xbox-button xbox-y">Y</strong></div>
+                <div class="control-row"><span>Pause</span><strong>MENU / START</strong></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="pauseMovesetPanel" class="pause-page" role="tabpanel" aria-labelledby="pauseMovesetBtn" hidden>
+            <div class="moveset-heading">
+              <div>
+                <span>CURRENT FIGHTER</span>
+                <h3 id="pauseMovesetName">HUNTER</h3>
+              </div>
+              <small id="pauseMovesetStyle">Fast screen control</small>
+            </div>
+            <div id="pauseMovesetList" class="moveset-list"></div>
+          </section>
+
+          <div class="pause-actions">
+            <button id="pauseResumeBtn" class="pause-action primary" type="button">RESUME</button>
+            <button id="pauseRestartBtn" class="pause-action" type="button">RESTART MATCH</button>
+            <span><kbd>ESC</kbd> Resume</span>
+          </div>
         </div>
-      </aside>
+      </div>
     </section>
 
-    <section class="controls">
-      <div><kbd>A</kbd><kbd>D</kbd> Move</div>
-      <div><kbd>W</kbd> Jump</div>
-      <div><kbd>S</kbd> Crouch</div>
-      <div><kbd>F</kbd> Punch</div>
-      <div><kbd>G</kbd> Kick</div>
-      <div><kbd>G</kbd>→<kbd>F</kbd> 2-Hit</div>
-      <div><kbd>F</kbd>→<kbd>G</kbd>→<kbd>F</kbd> 3-Hit</div>
-      <div><kbd>V</kbd> Block</div>
-      <div><kbd>Q</kbd> <span id="specialOneLabel">Red Spear</span></div>
-      <div><kbd>E</kbd> <span id="specialTwoLabel">Red Boomerang</span></div>
-      <div><kbd>R</kbd> Unleash</div>
-    </section>
-
-    <p class="note">Keyboard: W jump • F punch • G kick • Jump + G uses Hunter's jump kick. Xbox: Left Stick/D-pad move & jump • X punch • A kick • B/RT block • LB/RB specials • Y unleash. Xbox combos: A→X / X→A→X • Up+A jump kick.</p>
   </main>
 
+
+  <script id="pauseMenuBootstrap">
+  (() => {
+    'use strict';
+
+    const nativeRAF = window.requestAnimationFrame.bind(window);
+    const nativeCAF = window.cancelAnimationFrame.bind(window);
+    const nativeSetInterval = window.setInterval.bind(window);
+    const nativeClearInterval = window.clearInterval.bind(window);
+    const nativeSetTimeout = window.setTimeout.bind(window);
+    const nativeClearTimeout = window.clearTimeout.bind(window);
+
+    let paused = false;
+    let pauseStartedAt = 0;
+    let totalPausedMs = 0;
+    let nextHeldRafId = 1;
+    const heldRafs = new Map();
+    let nextTimeoutId = 1;
+    const timeoutJobs = new Map();
+
+    const gameClock = () => performance.now() - totalPausedMs - (paused ? performance.now() - pauseStartedAt : 0);
+
+    // Core game loops that use rAF receive a clock with pause time removed.
+    window.requestAnimationFrame = (callback) => {
+      if (paused) {
+        const id = -nextHeldRafId++;
+        heldRafs.set(id, callback);
+        return id;
+      }
+      return nativeRAF((timestamp) => callback(timestamp - totalPausedMs));
+    };
+    window.cancelAnimationFrame = (id) => {
+      if (typeof id === 'number' && id < 0) heldRafs.delete(id);
+      else nativeCAF(id);
+    };
+
+    // Skip interval ticks while paused so round timers do not keep counting.
+    window.setInterval = (fn, delay, ...args) => nativeSetInterval(() => {
+      if (!paused) fn(...args);
+    }, delay);
+    window.clearInterval = (id) => nativeClearInterval(id);
+
+    // Preserve timeout time remaining across a pause. This keeps hit/round transitions frozen too.
+    window.setTimeout = (fn, delay = 0, ...args) => {
+      const publicId = -1000000 - nextTimeoutId++;
+      const target = gameClock() + Math.max(0, Number(delay) || 0);
+      const job = { cancelled:false, nativeId:null };
+      timeoutJobs.set(publicId, job);
+      const check = () => {
+        if (job.cancelled) return;
+        if (paused) {
+          job.nativeId = nativeSetTimeout(check, 40);
+          return;
+        }
+        const remaining = target - gameClock();
+        if (remaining <= 1) {
+          timeoutJobs.delete(publicId);
+          fn(...args);
+        } else {
+          job.nativeId = nativeSetTimeout(check, Math.min(remaining, 100));
+        }
+      };
+      job.nativeId = nativeSetTimeout(check, Math.max(0, Number(delay) || 0));
+      return publicId;
+    };
+    window.clearTimeout = (id) => {
+      const job = timeoutJobs.get(id);
+      if (job) {
+        job.cancelled = true;
+        if (job.nativeId != null) nativeClearTimeout(job.nativeId);
+        timeoutJobs.delete(id);
+      } else nativeClearTimeout(id);
+    };
+
+    const MOVESETS = {
+      hunter: {
+        name:'HUNTER', style:'Fast screen control',
+        moves:[
+          ['Motion Spear','Back → Forward + F','Back → Forward + X'],
+          ['Motion Boomerang','Back → Back + F','Back → Back + X'],
+          ['2-Hit Combo','G → F','A → X'],
+          ['3-Hit Combo','F → G → F','X → A → X'],
+          ['Jump Kick','W + G','Up + A'],
+          ['Red Spear','Q • 1 Spirit','LB • 1 Spirit'],
+          ['Red Boomerang','E • 1 Spirit','RB • 1 Spirit'],
+          ['Spirit Unleash','R • 3 Spirit','Y • 3 Spirit']
+        ]
+      },
+      bruiser: {
+        name:'BRUISER', style:'Heavy pressure fighter',
+        moves:[
+          ['Battle Rage','Down → Down + G','Down → Down + A'],
+          ['Dash Punch','Forward → Forward + F','Forward → Forward + X'],
+          ['Red Rage','Q • 1 Spirit','LB • 1 Spirit'],
+          ['Red Dash','E • 1 Spirit','RB • 1 Spirit'],
+          ['Spirit Unleash','R • 3 Spirit','Y • 3 Spirit']
+        ]
+      }
+    };
+
+    let selectedFighter = 'hunter';
+    let currentTab = 'controller';
+    let lastStartPressed = false;
+
+    const el = (id) => document.getElementById(id);
+    const pauseMenu = el('pauseMenu');
+    const controllerBtn = el('pauseControllerBtn');
+    const movesetBtn = el('pauseMovesetBtn');
+    const controllerPanel = el('pauseControllerPanel');
+    const movesetPanel = el('pauseMovesetPanel');
+    const fighterTag = el('pauseFighterTag');
+    const movesetName = el('pauseMovesetName');
+    const movesetStyle = el('pauseMovesetStyle');
+    const movesetList = el('pauseMovesetList');
+    const resumeBtn = el('pauseResumeBtn');
+    const restartBtn = el('pauseRestartBtn');
+
+    function detectFighter() {
+      const hudName = (el('p1Name')?.textContent || '').trim().toLowerCase();
+      if (hudName.includes('bruiser')) selectedFighter = 'bruiser';
+      else if (hudName.includes('hunter')) selectedFighter = 'hunter';
+      return selectedFighter;
+    }
+
+    function renderMoveset() {
+      const fighter = detectFighter();
+      const data = MOVESETS[fighter] || MOVESETS.hunter;
+      fighterTag.textContent = data.name;
+      movesetName.textContent = data.name;
+      movesetStyle.textContent = data.style;
+      movesetList.replaceChildren();
+      data.moves.forEach((move, index) => {
+        const row = document.createElement('div');
+        row.className = 'move-entry' + ((data.moves.length % 2 === 1 && index === data.moves.length - 1) ? ' wide' : '');
+        const name = document.createElement('b');
+        name.textContent = move[0];
+        const keyboard = document.createElement('span');
+        keyboard.className = 'keyboard-input';
+        keyboard.textContent = move[1];
+        const pad = document.createElement('span');
+        pad.className = 'pad-input';
+        pad.textContent = move[2];
+        row.append(name, keyboard, pad);
+        movesetList.append(row);
+      });
+    }
+
+    function setTab(tab) {
+      currentTab = tab === 'moveset' ? 'moveset' : 'controller';
+      const showMoves = currentTab === 'moveset';
+      controllerBtn.classList.toggle('active', !showMoves);
+      movesetBtn.classList.toggle('active', showMoves);
+      controllerBtn.setAttribute('aria-selected', String(!showMoves));
+      movesetBtn.setAttribute('aria-selected', String(showMoves));
+      controllerPanel.classList.toggle('active', !showMoves);
+      movesetPanel.classList.toggle('active', showMoves);
+      controllerPanel.hidden = showMoves;
+      movesetPanel.hidden = !showMoves;
+      if (showMoves) renderMoveset();
+    }
+
+    function setPaused(value) {
+      value = Boolean(value);
+      if (value === paused) return;
+      if (value) {
+        pauseStartedAt = performance.now();
+        paused = true;
+        renderMoveset();
+        pauseMenu.classList.add('show');
+        pauseMenu.setAttribute('aria-hidden','false');
+        document.body.classList.add('spirit-paused');
+        setTab(currentTab);
+        nativeSetTimeout(() => resumeBtn?.focus(), 0);
+      } else {
+        const now = performance.now();
+        totalPausedMs += Math.max(0, now - pauseStartedAt);
+        pauseStartedAt = 0;
+        paused = false;
+        pauseMenu.classList.remove('show');
+        pauseMenu.setAttribute('aria-hidden','true');
+        document.body.classList.remove('spirit-paused');
+        const waiting = [...heldRafs.values()];
+        heldRafs.clear();
+        waiting.forEach((callback) => nativeRAF((timestamp) => callback(timestamp - totalPausedMs)));
+        el('game')?.focus?.();
+      }
+      window.PROJECT_SPIRIT_PAUSED = paused;
+    }
+
+    function togglePause() { setPaused(!paused); }
+
+    // Track fighter selection without needing to know the core game's variable name.
+    document.addEventListener('click', (event) => {
+      const choice = event.target.closest?.('.fighter-choice[data-fighter]');
+      if (choice) {
+        const fighter = String(choice.dataset.fighter || '').toLowerCase();
+        if (MOVESETS[fighter]) selectedFighter = fighter;
+      }
+    }, true);
+
+    controllerBtn?.addEventListener('click', () => setTab('controller'));
+    movesetBtn?.addEventListener('click', () => setTab('moveset'));
+    resumeBtn?.addEventListener('click', () => setPaused(false));
+    restartBtn?.addEventListener('click', () => {
+      setPaused(false);
+      const original = el('restartBtn');
+      if (original) original.click();
+      else location.reload();
+    });
+
+    // Capture first so fighting inputs never leak through the pause menu.
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (!event.repeat) togglePause();
+        return;
+      }
+      if (paused && !['Tab','Shift'].includes(event.key)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+    window.addEventListener('keyup', (event) => {
+      if (paused && event.key !== 'Escape') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }, true);
+
+    // Standard Xbox mapping: button 9 is Menu/Start. Poll with the native rAF so it works while the game is frozen.
+    function pollPauseButton() {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      const pad = pads && [...pads].find(Boolean);
+      const startPressed = Boolean(pad?.buttons?.[9]?.pressed);
+      if (startPressed && !lastStartPressed) togglePause();
+      lastStartPressed = startPressed;
+      nativeRAF(pollPauseButton);
+    }
+    nativeRAF(pollPauseButton);
+
+    window.SpiritPause = { pause:() => setPaused(true), resume:() => setPaused(false), toggle:togglePause, get paused(){return paused;} };
+    window.PROJECT_SPIRIT_PAUSED = false;
+    renderMoveset();
+  })();
+  </script>
   <script src="script.js"></script>
 </body>
 </html>
