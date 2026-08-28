@@ -1,15 +1,21 @@
-FIGHTING SPIRIT - HUNTER SPEAR THROW ANIMATION PATCH
+FIGHTING SPIRIT - HUNTER BOOMERANG RETURN PATCH
 
-Drop these files into the current project root and allow the folders to merge.
+Built on the current Hunter spear-throw script.
 
-Includes:
-- script.js
-- assets/hunter/spear_throw/spear_throw_0.png  (reach back)
-- assets/hunter/spear_throw/spear_throw_1.png  (full wind-up)
-- assets/hunter/spear_throw/spear_throw_2.png  (release, spear removed from back)
+INSTALL
+1. Replace the project-root script.js with this script.js.
+2. Keep your current index.html, style.css, and assets folders unchanged.
 
-Behavior:
-- Regular Motion Spear and Red Spear now use the three-frame throw animation.
-- Projectile no longer appears instantly. It spawns at the release frame.
-- Red Spear still uses the same standalone spear projectile with the red glow.
-- Existing spear damage, speed, hitboxes, and cooldowns are preserved.
+NEW BOOMERANG BEHAVIOR
+- Hunter throws the boomerang FORWARD in the direction he is facing.
+- The outbound boomerang is NOT active and has NO opponent hitbox.
+- It passes through the opponent and continues forward for about 1.5 seconds.
+- It then turns around from its actual position and homes back toward Hunter's CURRENT position.
+- Only the RETURN trip is active and can hit the opponent.
+- After one hit, it continues returning but cannot hit a second time.
+- The boomerang disappears when Hunter catches it.
+- Regular and red/powered boomerangs use the same flight logic.
+- Powered boomerang keeps its existing higher damage, red glow, and unblockable property.
+- CPU threat logic ignores the harmless outbound trip and reacts only once the boomerang returns.
+
+Existing spear-throw animation code is preserved.

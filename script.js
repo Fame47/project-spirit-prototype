@@ -980,18 +980,19 @@
       id,
       kind: 'boomerangOut',
       owner: fighter,
-      x: fighter.x,
+      x: fighter.x + fighter.facing * 42,
       y: fighter.bodyTop + 48,
-      throwDirection: -fighter.facing,
-      vx: -fighter.facing * 1120,
+      throwDirection: fighter.facing,
+      vx: fighter.facing * 1120,
       w: 52,
       h: 34,
       damage: 10,
-      life: .9,
-      timer: 2.5,
+      life: 5.0,
+      timer: 1.5,
       powered: false,
       unblockable: false,
       returnSpeed: 1245,
+      active: false,
       hit: false
     });
     spawnText(fighter.x, fighter.bodyTop - 18, 'BOOMERANG', '#d9edf2');
@@ -1046,19 +1047,20 @@
       id,
       kind: 'boomerangOut',
       owner: fighter,
-      x: fighter.x,
+      x: fighter.x + fighter.facing * 42,
       y: fighter.bodyTop + 48,
-      throwDirection: -fighter.facing,
-      vx: -fighter.facing * 1350,
+      throwDirection: fighter.facing,
+      vx: fighter.facing * 1350,
       w: 57,
       h: 36,
       damage: 14,
-      life: .75,
-      timer: 1.0,
+      life: 5.0,
+      timer: 1.5,
       powered: true,
       glow: '#ff2038',
       unblockable: true,
       returnSpeed: 1500,
+      active: false,
       hit: false
     });
   }
@@ -1100,7 +1102,7 @@
       const d = Math.abs(attacker.x - defender.x);
       if (d < 135) return true;
     }
-    return projectiles.some(p => !p.hidden && p.owner !== defender && Math.abs(p.x - defender.x) < 390);
+    return projectiles.some(p => !p.hidden && p.owner !== defender && p.kind !== 'boomerangOut' && Math.abs(p.x - defender.x) < 390);
   }
 
   function updateProjectiles(dt) {
@@ -1108,26 +1110,41 @@
       p.life -= dt;
 
       if (p.kind === 'boomerangOut') {
+        // Outbound boomerang is intentionally harmless. It flies straight through the
+        // opponent, keeps traveling for about 1.5 seconds, then turns back toward Hunter.
         p.x += p.vx * dt;
         p.timer -= dt;
-        if (p.life <= 0) {
-          p.hidden = true;
-          p.life = 999;
-        }
+        p.active = false;
+
         if (p.timer <= 0 && !p.returned) {
           p.returned = true;
-          p.hidden = false;
-          const target = p.owner === p1 ? p2 : p1;
           p.kind = 'boomerangReturn';
-          // It returns from the opposite edge while continuing the original throw direction.
-          // Throw left: re-enter beyond the right edge and travel left. Throw right: vice versa.
-          p.x = p.throwDirection < 0 ? W + 105 : -105;
-          p.y = FLOOR - 120;
-          p.vx = p.throwDirection * (p.returnSpeed || 1245);
-          p.life = 1.8;
+          p.active = true;
+          p.life = 3.5;
           p.hit = false;
-          spawnText(target.x, target.bodyTop - 30, 'BEHIND YOU!', '#8feaff');
         }
+      } else if (p.kind === 'boomerangReturn') {
+        // The return leg homes to Hunter's CURRENT position. This lets the player move
+        // after the throw and still creates the intended returning-weapon pressure.
+        const catchX = p.owner.x;
+        const catchY = p.owner.bodyTop + 52;
+        const dx = catchX - p.x;
+        const dy = catchY - p.y;
+        const distance = Math.hypot(dx, dy);
+
+        if (distance <= 48) {
+          p.life = 0;
+          p.caught = true;
+          continue;
+        }
+
+        const speed = p.returnSpeed || 1245;
+        const invDistance = distance > 0 ? 1 / distance : 0;
+        p.vx = dx * invDistance * speed;
+        p.vy = dy * invDistance * speed;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.active = true;
       } else {
         p.x += p.vx * dt;
         if (p.kind === 'dashHit') {
@@ -1136,7 +1153,8 @@
         }
       }
 
-      if (p.hidden || p.hit) continue;
+      // The outbound boomerang has NO hit box. Only the returning leg can connect.
+      if (p.hidden || p.hit || p.kind === 'boomerangOut' || p.active === false) continue;
       const target = p.owner === p1 ? p2 : p1;
       const box = { x: p.x - p.w / 2, y: p.y - p.h / 2, w: p.w, h: p.h };
       if (rectsOverlap(box, target.bodyBox())) {
@@ -1193,7 +1211,14 @@
         }
       }
     }
-    projectiles = projectiles.filter(p => p.life > 0 && (p.hidden || (p.x > -220 && p.x < W + 220)));
+
+    // Boomerangs are allowed to travel beyond the screen edge during the outbound leg
+    // so the 1.5-second turn timing stays consistent. They are removed when caught/expired.
+    projectiles = projectiles.filter(p => {
+      if (p.life <= 0) return false;
+      if (p.kind === 'boomerangOut' || p.kind === 'boomerangReturn') return true;
+      return p.hidden || (p.x > -220 && p.x < W + 220);
+    });
   }
 
   function applyHit(attacker, defender, baseDamage, knockback, stun, spiritGain, shakeAmount, type, options = {}) {
