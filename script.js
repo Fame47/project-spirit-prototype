@@ -63,10 +63,13 @@
   // Standalone Hunter projectile art. The spear source is kept vertical so it can
   // be rotated cleanly toward either side at draw time.
   const HUNTER_PROJECTILES = {
-    spear: new Image()
+    spear: new Image(),
+    boomerang: new Image()
   };
   HUNTER_PROJECTILES.spear.src = 'assets/hunter/projectiles/spear.png';
+  HUNTER_PROJECTILES.boomerang.src = 'assets/hunter/projectiles/boomerang.png';
   const HUNTER_SPEAR_DRAW = { length: 140, thickness: 16 };
+  const HUNTER_BOOMERANG_DRAW = { size: 84 };
 
   const ATTACKS = {
     punch:       { duration: .28, activeStart: .075, activeEnd: .15, damage: 5, range: 102, height: 66, yOffset: 53, knockback: 203, stun: .22, spirit: 9, shake: 4 },
@@ -1504,15 +1507,28 @@
         }
       } else if (p.kind.startsWith('boomerang')) {
         const powered = p.powered !== false;
+        const boomerangImage = HUNTER_PROJECTILES.boomerang;
         ctx.translate(p.x, p.y);
         ctx.rotate(performance.now() / (powered ? 65 : 82));
         ctx.shadowBlur = powered ? 38 : 8;
         ctx.shadowColor = powered ? '#ff2038' : '#b7d8df';
-        ctx.strokeStyle = powered ? '#ff3048' : '#b8c4c7';
-        ctx.lineWidth = powered ? 15 : 12;
-        ctx.beginPath();
-        ctx.arc(0, 0, 27, -.8, 2.1);
-        ctx.stroke();
+
+        if (boomerangImage && boomerangImage.complete && boomerangImage.naturalWidth) {
+          ctx.drawImage(
+            boomerangImage,
+            -HUNTER_BOOMERANG_DRAW.size / 2,
+            -HUNTER_BOOMERANG_DRAW.size / 2,
+            HUNTER_BOOMERANG_DRAW.size,
+            HUNTER_BOOMERANG_DRAW.size
+          );
+        } else {
+          // Keep the old arc as a tiny fallback while the PNG loads.
+          ctx.strokeStyle = powered ? '#ff3048' : '#b8c4c7';
+          ctx.lineWidth = powered ? 15 : 12;
+          ctx.beginPath();
+          ctx.arc(0, 0, 27, -.8, 2.1);
+          ctx.stroke();
+        }
       } else if (p.kind === 'dashHit') {
         const powered = p.powered !== false;
         ctx.shadowBlur = powered ? 42 : 12;
