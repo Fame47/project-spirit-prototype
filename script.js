@@ -53,7 +53,8 @@
     guard: loadFrames('guard', 'guard', 2),
     punch: loadFrames('punch', 'punch', 4),
     kick: loadFrames('kick', 'kick', 4),
-    air_kick: loadFrames('air_kick', 'air_kick', 1)
+    air_kick: loadFrames('air_kick', 'air_kick', 1),
+    spear_throw: loadFrames('spear_throw', 'spear_throw', 3)
   };
 
   // Standalone Hunter projectile art. The spear source is kept vertical so it can
@@ -139,6 +140,7 @@
       this.inputHistory = [];
       this.attackInputHistory = [];
       this.landingRecovery = 0;
+      this.specialAnim = null;
       this.trail = [];
       this.animState = 'idle';
       this.animTime = 0;
@@ -184,6 +186,7 @@
       this.inputHistory = [];
       this.attackInputHistory = [];
       this.landingRecovery = 0;
+      this.specialAnim = null;
       this.trail = [];
       this.animState = 'idle';
       this.animTime = 0;
@@ -289,6 +292,15 @@
       this.specialLock = Math.max(0, this.specialLock - dt);
       this.basicMoveCooldown = Math.max(0, this.basicMoveCooldown - dt);
       if (!this.attack) this.landingRecovery = Math.max(0, this.landingRecovery - dt);
+
+      if (this.specialAnim) {
+        this.specialAnim.t += dt;
+        if (this.specialAnim.type === 'spear' && !this.specialAnim.spawned && this.specialAnim.t >= this.specialAnim.spawnAt) {
+          this.specialAnim.spawned = true;
+          spawnHunterSpearProjectile(this, this.specialAnim.powered, this.specialAnim.facing);
+        }
+        if (this.specialAnim.t >= this.specialAnim.duration) this.specialAnim = null;
+      }
 
       if (this.dot) {
         this.dot.tick -= dt;
@@ -602,6 +614,7 @@
 
     getAnimationState() {
       if (this.type !== 'hunter') return 'idle';
+      if (this.specialAnim?.type === 'spear') return 'spear_throw';
       if (this.attack) {
         if (this.attack.type === 'combo2' || this.attack.type === 'combo3') return 'combo';
         if (this.attack.type === 'airKick') return 'air_kick';
@@ -617,6 +630,14 @@
     }
 
     getHunterFrame() {
+      if (this.animState === 'spear_throw' && this.specialAnim) {
+        const frames = HUNTER_SPRITES.spear_throw;
+        const t = this.specialAnim.t;
+        if (t < .12) return frames[0] || HUNTER_SPRITES.idle[0];
+        if (t < .24) return frames[1] || frames[0] || HUNTER_SPRITES.idle[0];
+        return frames[2] || frames[1] || frames[0] || HUNTER_SPRITES.idle[0];
+      }
+
       if (this.animState === 'combo' && this.attack) {
         const data = ATTACKS[this.attack.type];
         if (data && data.frames && data.frameTimes) {
@@ -909,25 +930,44 @@
     shake = Math.max(shake, 9);
   }
 
-  function hunterRegularSpear(fighter) {
-    if (!fighter.canUseBasicMove()) return false;
-    fighter.basicMoveCooldown = 1.15;
-    fighter.specialLock = .34;
+  function startHunterSpearThrow(fighter, powered = false) {
+    const duration = powered ? .46 : .42;
+    fighter.specialAnim = {
+      type: 'spear',
+      t: 0,
+      powered,
+      facing: fighter.facing,
+      spawned: false,
+      spawnAt: .24,
+      duration
+    };
+    fighter.specialLock = Math.max(fighter.specialLock, duration);
     fighter.vx = 0;
+  }
+
+  function spawnHunterSpearProjectile(fighter, powered = false, lockedFacing = fighter.facing) {
+    const facing = lockedFacing || fighter.facing;
     projectiles.push({
       kind: 'spear',
       owner: fighter,
-      x: fighter.x + fighter.facing * 55,
-      y: fighter.bodyTop + 58,
-      vx: fighter.facing * 1030,
-      w: 108,
-      h: 16,
-      damage: 9,
+      x: fighter.x + facing * 70,
+      y: fighter.bodyTop + 62,
+      vx: facing * (powered ? 1170 : 1030),
+      w: powered ? 123 : 108,
+      h: powered ? 18 : 16,
+      damage: powered ? 13 : 9,
       life: 2.2,
-      powered: false,
+      powered,
+      glow: powered ? '#ff2038' : null,
       hit: false
     });
-    spawnText(fighter.x, fighter.bodyTop - 18, 'SPEAR', '#d9edf2');
+    spawnText(fighter.x, fighter.bodyTop - 18, powered ? 'RED SPEAR' : 'SPEAR', powered ? '#ff6b78' : '#d9edf2');
+  }
+
+  function hunterRegularSpear(fighter) {
+    if (!fighter.canUseBasicMove()) return false;
+    fighter.basicMoveCooldown = 1.15;
+    startHunterSpearThrow(fighter, false);
     return true;
   }
 
@@ -995,22 +1035,7 @@
 
   function hunterSpear(fighter) {
     if (!fighter.canAct() || !fighter.spendSpirit(1)) return;
-    fighter.specialLock = .45;
-    fighter.vx = 0;
-    projectiles.push({
-      kind: 'spear',
-      owner: fighter,
-      x: fighter.x + fighter.facing * 55,
-      y: fighter.bodyTop + 58,
-      vx: fighter.facing * 1170,
-      w: 123,
-      h: 18,
-      damage: 13,
-      life: 2.2,
-      powered: true,
-      glow: '#ff2038',
-      hit: false
-    });
+    startHunterSpearThrow(fighter, true);
   }
 
   function hunterBoomerang(fighter) {
